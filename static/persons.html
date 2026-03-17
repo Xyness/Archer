@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archer — Persons</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Arch<span>er</span></h1>
+        <nav>
+            <a href="/static/index.html">Recognition</a>
+            <a href="/static/persons.html" class="active">Persons</a>
+        </nav>
+    </header>
+
+    <main class="persons-layout">
+        <section class="card">
+            <h2>Register a person</h2>
+            <form id="person-form">
+                <div class="form-group">
+                    <label for="name">Last name</label>
+                    <input type="text" id="name" name="name" placeholder="Doe" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="surname">First name</label>
+                    <input type="text" id="surname" name="surname" placeholder="John" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="dob">Date of birth</label>
+                    <input type="date" id="dob" name="date_of_birth" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="photo">Photo</label>
+                    <input type="file" id="photo" name="photo" accept="image/*" required>
+                </div>
+
+                <button type="submit">Register</button>
+                <p id="form-message"></p>
+            </form>
+        </section>
+
+        <section class="card">
+            <div class="card-header">
+                <h2>Registered persons</h2>
+                <div class="search-box">
+                    <input type="text" id="search-input" placeholder="Search...">
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <table id="persons-table">
+                    <thead>
+                        <tr>
+                            <th>Photo</th>
+                            <th>Last name</th>
+                            <th>First name</th>
+                            <th>Birth date</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="persons-tbody"></tbody>
+                </table>
+            </div>
+            <div id="empty-state" class="empty-state" style="display: none;">
+                No registered persons
+            </div>
+            <div id="pagination" class="pagination"></div>
+        </section>
+    </main>
+
+    <!-- Profile modal -->
+    <div id="profile-overlay" class="profile-overlay" style="display:none">
+        <div class="profile-modal">
+            <button class="profile-close" id="profile-close">&times;</button>
+            <div id="profile-body"></div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+__pycache__/
+*.pyc
+*.pyo
+
+# Database
+*.db
+
+# Uploaded photos
+uploads/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# InsightFace models
+.insightface/

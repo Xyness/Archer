@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archer</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <h1>Arch<span>er</span></h1>
+        <nav>
+            <a href="/static/index.html" class="active">Recognition</a>
+            <a href="/static/persons.html">Persons</a>
+        </nav>
+    </header>
+
+    <main class="recognition-layout">
+        <section class="video-section">
+            <video id="camera-preview" autoplay playsinline muted></video>
+            <canvas id="hud-overlay"></canvas>
+            <canvas id="capture-canvas" style="display:none"></canvas>
+        </section>
+
+        <aside class="sidebar">
+            <div class="sidebar-card">
+                <h2>Identification</h2>
+                <div id="match-content">
+                    <p class="no-match">Waiting for detection...</p>
+                </div>
+            </div>
+
+            <div class="sidebar-card">
+                <h2>Status</h2>
+                <div id="status-badge" class="status-badge status-off">
+                    <span class="status-dot"></span>
+                    <span id="status-text">Camera inactive</span>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
