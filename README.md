@@ -51,7 +51,7 @@ Archer/
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/Archer.git
+git clone https://github.com/Xyness/Archer.git
 cd Archer
 
 # Install dependencies
