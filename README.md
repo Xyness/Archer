@@ -1,12 +1,12 @@
 # Archer
 
-Real-time face recognition system with a sci-fi HUD overlay. Built with FastAPI, InsightFace (ArcFace), and vanilla JavaScript.
+Real-time face recognition system. Built with FastAPI, InsightFace (ArcFace), and vanilla JavaScript.
 
 ## Features
 
 - **Real-time face detection** — Live webcam feed with face detection at high frame rates
 - **Face recognition** — Identifies registered persons using ArcFace 512-dimensional embeddings with cosine similarity matching
-- **Sci-fi HUD overlay** — Futuristic heads-up display drawn over detected faces (cyan for known, red for unknown)
+- **HUD overlay** — HUD over detected faces (cyan for known, red for unknown)
 - **Multi-photo support** — Register multiple photos per person for improved recognition accuracy
 - **Person management** — Full CRUD: register, search, paginate, view profiles, and delete persons
 - **Photo gallery** — Add or remove individual photos from a person's profile
