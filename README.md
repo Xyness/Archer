@@ -27,8 +27,8 @@ first or the InsightFace wheel won't build.
 
 The browser captures frames from the video element, encodes them as JPEG and POSTs them to
 `/analyze-frame`. The backend decodes the frame, shrinks it to a quarter size, and runs
-detection plus recognition on the small copy — coordinates get scaled back up before they
-go out. Every embedding is compared against all stored encodings with cosine similarity.
+detection plus recognition on the small copy, then scales the coordinates back up before
+they go out. Every embedding is compared against all stored encodings with cosine similarity.
 People can have more than one photo, and the best match across their photos is the one
 that counts.
 
@@ -43,7 +43,7 @@ sidebar with their similarity score.
 
 `/static/persons.html` is the registry: register someone with a photo, search, paginate,
 open a profile to add more photos or drop them. Registering several photos per person under
-different lighting makes a real difference to the match rate — one photo is usually enough
+different lighting makes a real difference to the match rate. One photo is usually enough
 to be recognised head-on and not much else.
 
 ## API
@@ -87,7 +87,7 @@ CREATE TABLE photos (
 Both knobs live at the top of `face_engine.py`.
 
 `SIMILARITY_THRESHOLD` is 0.4. ArcFace embeddings are normalised, so this is a plain cosine
-score — below roughly 0.3 you start collecting false matches, above 0.5 it gets picky about
+score. Below roughly 0.3 you start collecting false matches, above 0.5 it gets picky about
 angle and lighting. 0.4 was where it stopped mixing people up on my test set.
 
 `SCALE_FACTOR` is 0.25. Detection runs on the downscaled frame, so this is the main lever on
@@ -99,7 +99,7 @@ in `CUDAExecutionProvider` in `_get_app()` works if you have the GPU build insta
 ## Known limits
 
 Matching is a linear scan over every stored encoding, which is fine for a few hundred people
-and won't be beyond that — a proper vector index is the obvious next step. Encodings are
+and won't be beyond that; a proper vector index is the obvious next step. Encodings are
 loaded into memory once at startup and refreshed on write, so an external process editing the
 database won't be picked up. There's no auth on any of the endpoints.
 
