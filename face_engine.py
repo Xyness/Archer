@@ -5,7 +5,11 @@ from insightface.app import FaceAnalysis
 
 from database import get_all_encodings
 
+# Cosine similarity on normalised ArcFace embeddings. Below ~0.3 different people
+# start matching each other, above ~0.5 it gets fussy about angle and lighting.
 SIMILARITY_THRESHOLD = 0.4
+
+# Detection runs on the downscaled frame, so this is the main lever on latency.
 SCALE_FACTOR = 0.25
 
 _app: FaceAnalysis | None = None
@@ -16,6 +20,8 @@ _lock = threading.Lock()
 def _get_app() -> FaceAnalysis:
     global _app
     if _app is None:
+        # buffalo_l also ships age/gender models we never use, and loading them
+        # costs a few seconds of startup for nothing.
         _app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"], allowed_modules=["detection", "recognition"])
         _app.prepare(ctx_id=0, det_size=(320, 320))
     return _app
@@ -34,6 +40,7 @@ def encode_photo(image_bytes: bytes) -> np.ndarray | None:
 
 
 def reload_encodings():
+    """Pull every stored encoding into memory. Called at startup and after any write."""
     global _known_persons
     _get_app()
     with _lock:
@@ -41,11 +48,12 @@ def reload_encodings():
 
 
 def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
+    # epsilon keeps a zero vector from blowing up the division
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-10))
 
 
 def analyze_frame(jpeg_bytes: bytes) -> dict:
-    """Receive a JPEG from the browser, return face locations + match data."""
+    """Take a JPEG from the browser, return face boxes and whatever they matched."""
     arr = np.frombuffer(jpeg_bytes, dtype=np.uint8)
     frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
     if frame is None:
@@ -56,12 +64,13 @@ def analyze_frame(jpeg_bytes: bytes) -> dict:
 
     detected = _get_app().get(small)
 
+    # Snapshot the list so a concurrent reload doesn't swap it mid-loop.
     with _lock:
         known_persons = list(_known_persons)
 
     faces = []
     matches = []
-    inv_scale = 1 / SCALE_FACTOR
+    inv_scale = 1 / SCALE_FACTOR  # boxes come out in downscaled space
 
     for face in detected:
         bbox = face.bbox
@@ -79,6 +88,8 @@ def analyze_frame(jpeg_bytes: bytes) -> dict:
             best_sim = -1.0
             best_person = None
             for person in known_persons:
+                # Best of a person's photos, not the average: one good angle should
+                # be enough to identify them.
                 sims = [_cosine_similarity(enc, pe) for pe in person["encodings"]]
                 max_sim = max(sims)
                 if max_sim > best_sim:
@@ -98,6 +109,8 @@ def analyze_frame(jpeg_bytes: bytes) -> dict:
                 }
                 matches.append(match_data)
 
+        # Normalised to the frame so the canvas overlay doesn't need to know
+        # what size the video element rendered at.
         faces.append({
             "x": float(left / w),
             "y": float(top / h),

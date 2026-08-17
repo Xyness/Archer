@@ -1,7 +1,3 @@
-// ============================================================
-//  ARCHER — Browser camera + sci-fi HUD overlay
-// ============================================================
-
 const video = document.getElementById("camera-preview");
 const hudCanvas = document.getElementById("hud-overlay");
 const captureCanvas = document.getElementById("capture-canvas");
@@ -9,11 +5,12 @@ const matchContent = document.getElementById("match-content");
 const statusBadge = document.getElementById("status-badge");
 const statusText = document.getElementById("status-text");
 
-// --- HUD drawing state ---
+// currentFaces trails targetFaces so boxes glide instead of snapping between responses
 let currentFaces = [];
 let targetFaces = [];
 
-const SEND_W = 320;  // Low-res capture for fast server processing
+// The backend downscales anyway, so there's no point uploading full resolution.
+const SEND_W = 320;
 
 if (video && hudCanvas && captureCanvas) {
     const hudCtx = hudCanvas.getContext("2d");
@@ -26,16 +23,18 @@ if (video && hudCanvas && captureCanvas) {
             if (statusText) statusText.textContent = "Camera active";
 
             video.addEventListener("loadeddata", () => {
-                // Set capture canvas to low-res for faster server round-trips
                 const ratio = video.videoHeight / video.videoWidth;
                 captureCanvas.width = SEND_W;
                 captureCanvas.height = Math.round(SEND_W * ratio);
 
-                // Adapt video section to camera aspect ratio
+                // Let the container follow whatever aspect ratio the camera gave us,
+                // otherwise the overlay ends up offset from the picture.
                 const section = video.closest(".video-section");
                 if (section) section.style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
 
                 resizeHud();
+                // The `analyzing` guard means this really runs "as fast as the backend
+                // replies" rather than every 10ms.
                 setInterval(captureAndAnalyze, 10);
                 requestAnimationFrame(drawHud);
             });
@@ -54,7 +53,6 @@ if (video && hudCanvas && captureCanvas) {
         hudCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     }
 
-    // --- Capture & send to server ---
     async function captureAndAnalyze() {
         if (analyzing || video.readyState < 2) return;
         analyzing = true;
@@ -105,7 +103,6 @@ if (video && hudCanvas && captureCanvas) {
 
     function lerp(a, b, t) { return a + (b - a) * t; }
 
-    // --- Draw sci-fi HUD ---
     function drawHud() {
         const rect = video.getBoundingClientRect();
         const W = rect.width;
@@ -208,9 +205,7 @@ if (video && hudCanvas && captureCanvas) {
     }
 }
 
-// ============================================================
-//  Person form submission
-// ============================================================
+// Registration form
 const personForm = document.getElementById("person-form");
 const formMessage = document.getElementById("form-message");
 
@@ -247,9 +242,7 @@ if (personForm) {
     });
 }
 
-// ============================================================
-//  Persons table (search + pagination)
-// ============================================================
+// Persons table: search + pagination
 const personsTbody = document.getElementById("persons-tbody");
 const emptyState = document.getElementById("empty-state");
 const personsTable = document.getElementById("persons-table");
@@ -359,9 +352,7 @@ async function deletePerson(id) {
     }
 }
 
-// ============================================================
-//  Profile modal
-// ============================================================
+// Profile modal
 const profileOverlay = document.getElementById("profile-overlay");
 const profileBody = document.getElementById("profile-body");
 const profileClose = document.getElementById("profile-close");

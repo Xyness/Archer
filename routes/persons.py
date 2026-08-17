@@ -14,6 +14,8 @@ UPLOADS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads"
 
 
 def _save_upload(contents: bytes, original_filename: str) -> str:
+    # Keep the extension but throw the client's filename away: it's untrusted and
+    # two people uploading photo.jpg shouldn't clobber each other.
     ext = os.path.splitext(original_filename)[1] or ".jpg"
     filename = f"{uuid.uuid4().hex}{ext}"
     filepath = os.path.join(UPLOADS_DIR, filename)
@@ -37,6 +39,8 @@ async def create_person(
     filename = _save_upload(contents, photo.filename)
     person_id = insert_person(name, surname, date_of_birth)
     insert_photo(person_id, f"uploads/{filename}", encoding)
+    # Full reload after every write. Wasteful, but the table is small and it keeps
+    # the in-memory copy honest without any invalidation logic.
     reload_encodings()
 
     return {"id": person_id, "message": "Person registered successfully."}

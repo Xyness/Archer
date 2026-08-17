@@ -1,104 +1,70 @@
 # Archer
 
-Real-time face recognition system. Built with FastAPI, InsightFace (ArcFace), and vanilla JavaScript.
+Real-time face recognition in the browser. The webcam stays in the page, frames get posted
+to a FastAPI backend that runs InsightFace (SCRFD to detect, ArcFace to embed), and the
+response comes back as box coordinates plus whoever matched.
 
-## Features
+## Running it
 
-- **Real-time face detection** — Live webcam feed with face detection at high frame rates
-- **Face recognition** — Identifies registered persons using ArcFace 512-dimensional embeddings with cosine similarity matching
-- **HUD overlay** — HUD over detected faces (cyan for known, red for unknown)
-- **Multi-photo support** — Register multiple photos per person for improved recognition accuracy
-- **Person management** — Full CRUD: register, search, paginate, view profiles, and delete persons
-- **Photo gallery** — Add or remove individual photos from a person's profile
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Backend | [FastAPI](https://fastapi.tiangolo.com/) (Python) |
-| Face Engine | [InsightFace](https://github.com/deepinsight/insightface) (ArcFace / SCRFD) |
-| Inference | [ONNX Runtime](https://onnxruntime.ai/) (CPU) |
-| Database | SQLite |
-| Frontend | Vanilla JS + Canvas API |
-| Styling | Custom CSS (glassmorphism / Apple-inspired) |
-
-## Project Structure
-
-```
-Archer/
-├── main.py              # FastAPI app entry point
-├── database.py          # SQLite schema, migrations, CRUD
-├── face_engine.py       # InsightFace: encoding, matching, frame analysis
-├── requirements.txt     # Python dependencies
-├── routes/
-│   ├── persons.py       # REST API for persons & photos
-│   └── video.py         # /analyze-frame endpoint
-├── static/
-│   ├── index.html       # Recognition page (webcam + HUD)
-│   ├── persons.html     # Person management page
-│   ├── app.js           # Frontend logic (camera, HUD, forms, gallery)
-│   └── style.css        # UI styles
-└── uploads/             # Stored person photos (auto-created)
-```
-
-## Prerequisites
-
-- Python 3.10+
-- A webcam (for real-time recognition)
-- **Windows only**: [Microsoft Visual C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) (required to install InsightFace)
-
-## Installation
+You need Python 3.10+ and a webcam if you want the live page to do anything useful.
 
 ```bash
-# Clone the repository
 git clone https://github.com/Xyness/Archer.git
 cd Archer
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Run the server
 python main.py
 ```
 
-The server starts at **http://127.0.0.1:8000**
+Then open http://127.0.0.1:8000/static/index.html.
 
-On first launch, InsightFace will automatically download the `buffalo_l` model (~280MB) to `~/.insightface/models/`.
+First launch downloads the `buffalo_l` model pack (~280 MB) into `~/.insightface/models/`,
+so give it a minute before anything happens.
 
-## Usage
+On Windows, install the [Visual C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+first or the InsightFace wheel won't build.
 
-### Recognition Page (`/static/index.html`)
+## How it works
 
-1. Allow camera access when prompted
-2. The HUD overlay will draw bounding boxes around detected faces
-3. Registered persons show up in **cyan** with their name and confidence score
-4. Unknown faces appear in **red**
-5. The sidebar displays matched person details in real time
+The browser captures frames from the video element, encodes them as JPEG and POSTs them to
+`/analyze-frame`. The backend decodes the frame, shrinks it to a quarter size, and runs
+detection plus recognition on the small copy — coordinates get scaled back up before they
+go out. Every embedding is compared against all stored encodings with cosine similarity.
+People can have more than one photo, and the best match across their photos is the one
+that counts.
 
-### Persons Page (`/static/persons.html`)
+Boxes come back as fractions of the frame rather than pixels, so the canvas overlay doesn't
+have to know how big the video element ended up being. Known faces are drawn cyan, unknown
+ones red.
 
-1. Fill in the registration form (name, surname, date of birth, photo)
-2. Click **Register** — the photo is analyzed for face detection and stored
-3. Browse registered persons in the searchable, paginated table
-4. Click a row to open the profile modal
-5. Add additional photos or delete existing ones from the profile
+## The two pages
 
-## API Endpoints
+`/static/index.html` is the live view. Allow the camera and matched people show up in the
+sidebar with their similarity score.
+
+`/static/persons.html` is the registry: register someone with a photo, search, paginate,
+open a profile to add more photos or drop them. Registering several photos per person under
+different lighting makes a real difference to the match rate — one photo is usually enough
+to be recognised head-on and not much else.
+
+## API
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/persons` | Register a new person (multipart form) |
-| `GET` | `/persons` | List persons (query: `q`, `page`, `per_page`) |
-| `DELETE` | `/persons/{id}` | Delete a person and all their photos |
-| `GET` | `/persons/{id}/photos` | List photos for a person |
-| `POST` | `/persons/{id}/photos` | Add a photo to a person |
-| `DELETE` | `/persons/{id}/photos/{photo_id}` | Delete a specific photo |
-| `POST` | `/analyze-frame` | Analyze a JPEG frame for face detection/recognition |
+| `POST` | `/persons` | Register a person (multipart form) |
+| `GET` | `/persons` | List persons, takes `q`, `page`, `per_page` |
+| `DELETE` | `/persons/{id}` | Delete a person and their photos |
+| `GET` | `/persons/{id}/photos` | Photos belonging to a person |
+| `POST` | `/persons/{id}/photos` | Add a photo |
+| `DELETE` | `/persons/{id}/photos/{photo_id}` | Delete one photo |
+| `POST` | `/analyze-frame` | Analyse a JPEG frame |
 
-## Database Schema
+## Storage
+
+SQLite, two tables. Embeddings are stored as raw float32 blobs and read back with
+`np.frombuffer`, which keeps the schema simple at the cost of not being able to query
+on them.
 
 ```sql
--- Person identity
 CREATE TABLE persons (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -107,40 +73,35 @@ CREATE TABLE persons (
     created_at TEXT DEFAULT (datetime('now'))
 );
 
--- Multiple photos per person (1:N)
 CREATE TABLE photos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     person_id INTEGER NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
     photo_path TEXT NOT NULL,
-    encoding BLOB NOT NULL,        -- 512-dim float32 ArcFace embedding
+    encoding BLOB NOT NULL,
     created_at TEXT DEFAULT (datetime('now'))
 );
 ```
 
-## Configuration
+## Tuning
 
-Key constants in `face_engine.py`:
+Both knobs live at the top of `face_engine.py`.
 
-| Constant | Default | Description |
-|---|---|---|
-| `SIMILARITY_THRESHOLD` | `0.4` | Minimum cosine similarity to consider a match |
-| `SCALE_FACTOR` | `0.25` | Frame downscale factor before detection (lower = faster) |
+`SIMILARITY_THRESHOLD` is 0.4. ArcFace embeddings are normalised, so this is a plain cosine
+score — below roughly 0.3 you start collecting false matches, above 0.5 it gets picky about
+angle and lighting. 0.4 was where it stopped mixing people up on my test set.
 
-InsightFace model settings:
+`SCALE_FACTOR` is 0.25. Detection runs on the downscaled frame, so this is the main lever on
+latency. Raising it helps with faces further from the camera and costs frame rate.
 
-| Setting | Value | Description |
-|---|---|---|
-| Model | `buffalo_l` | ArcFace recognition + SCRFD detection |
-| Detection size | `320x320` | Input resolution for face detection |
-| Providers | `CPUExecutionProvider` | ONNX Runtime execution provider |
+Detection input is fixed at 320x320 and inference runs on CPU through ONNX Runtime. Swapping
+in `CUDAExecutionProvider` in `_get_app()` works if you have the GPU build installed.
 
-## How It Works
+## Known limits
 
-1. The browser captures webcam frames and sends them as JPEG to `/analyze-frame`
-2. InsightFace detects faces (SCRFD) and extracts 512-dim embeddings (ArcFace)
-3. Each embedding is compared against all stored encodings using cosine similarity
-4. For multi-photo persons, the **maximum similarity** across all photos is used
-5. Results are sent back to the browser, which draws the HUD overlay on a canvas
+Matching is a linear scan over every stored encoding, which is fine for a few hundred people
+and won't be beyond that — a proper vector index is the obvious next step. Encodings are
+loaded into memory once at startup and refreshed on write, so an external process editing the
+database won't be picked up. There's no auth on any of the endpoints.
 
 ## License
 

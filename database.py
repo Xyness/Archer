@@ -8,6 +8,8 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "archer.db")
 def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    # Off by default in SQLite and it's per-connection, so the ON DELETE CASCADE
+    # on photos only works if we set it every time.
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
@@ -121,7 +123,7 @@ def search_persons(query: str, page: int, per_page: int) -> dict:
 
 
 def get_all_encodings() -> list[dict]:
-    """Return all photos joined with person info, grouped by person_id."""
+    """Every photo joined to its person, collapsed into one row per person."""
     conn = get_connection()
     rows = conn.execute("""
         SELECT p.id AS person_id, p.name, p.surname, p.date_of_birth,
@@ -131,10 +133,10 @@ def get_all_encodings() -> list[dict]:
     """).fetchall()
     conn.close()
 
-    from collections import defaultdict
     persons_map: dict[int, dict] = {}
     for r in rows:
         pid = r["person_id"]
+        # Stored as raw float32 bytes, so read it straight back out.
         enc = np.frombuffer(r["encoding"], dtype=np.float32)
         if pid not in persons_map:
             persons_map[pid] = {
